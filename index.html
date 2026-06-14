@@ -218,6 +218,14 @@
             border: 1px solid var(--border);
             border-radius: 10px;
         }
+
+        .albumDownloadButton {
+            width: 500px;
+            margin-top: 15px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+        }
     </style>
 </head>
 
@@ -430,6 +438,25 @@
                         songList.innerHTML = 'Album not found';
                         return;
                     }
+                    const downloadAlbumButton = document.createElement("button");
+                    downloadAlbumButton.textContent = "Download Full Album";
+                    downloadAlbumButton.classList.add("albumDownloadButton");
+
+                    songList.appendChild(downloadAlbumButton);
+
+                    downloadAlbumButton.addEventListener("click", async () => {
+                        for (const song of album.songs) {
+                            if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
+                                continue;
+                            }
+
+                            if (blockDrumsMusic.checked && song.includesDrums === true) {
+                                continue;
+                            }
+
+                            await downloadSong(song.albumSongID, song.albumSongName);
+                        }
+                    });
 
                     if (!getToken()) {
                         tokenModal.style.display = "flex";
