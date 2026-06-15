@@ -275,7 +275,7 @@
         </div>
 
     </div>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
         const CATALOG_URL = "https://musicdata.rejoicemusic.org/meta/latest/core.json.gz";
         const statusContent = document.getElementById("statusContent");
@@ -439,28 +439,14 @@
                         return;
                     }
                     const downloadAlbumButton = document.createElement("button");
-                    downloadAlbumButton.textContent = "Download Full Album";
+                    downloadAlbumButton.textContent = "Download Full Album (.zip)";
                     downloadAlbumButton.classList.add("albumDownloadButton");
 
                     songList.appendChild(downloadAlbumButton);
 
                     downloadAlbumButton.addEventListener("click", async () => {
-                        for (const song of album.songs) {
-                            if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
-                                continue;
-                            }
-
-                            if (blockDrumsMusic.checked && song.includesDrums === true) {
-                                continue;
-                            }
-
-                            await downloadSong(song.albumSongID, song.albumSongName);
-                        }
+                        await downloadAlbumZip(album);
                     });
-
-                    if (!getToken()) {
-                        tokenModal.style.display = "flex";
-                    }
 
                     for (const song of album.songs) {
                         const div = document.createElement("div");
@@ -499,9 +485,71 @@
 
                         }
                     }
-
-
                 });
+                //Download Zip Credits @chatgpt - I was running out of time //
+                async function downloadAlbumZip(album) {
+                    const token = getToken();
+
+                    try {
+                        if (!token) {
+                            tokenModal.style.display = "flex";
+                            return;
+                        }
+
+                        const zip = new JSZip();
+
+                        for (const song of album.songs) {
+                            if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
+                                continue;
+                            }
+
+                            if (blockDrumsMusic.checked && song.includesDrums === true) {
+                                continue;
+                            }
+
+                            statusContent.textContent = `Adding ${song.albumSongName} to ZIP...`;
+
+                            const songUrl = `https://musicdata.rejoicemusic.org/albumsong/${song.albumSongID}_medium.mp3?token=${token}`;
+                            const response = await fetch(songUrl);
+
+                            if (!response.ok) {
+                                if (response.status === 403) {
+                                    localStorage.removeItem("token");
+                                    tokenModal.style.display = "flex";
+                                    statusContent.textContent = "Try entering a new token.";
+                                    return;
+                                }
+
+                                throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                            }
+
+                            const blob = await response.blob();
+
+                            zip.file(`${song.albumSongName}.mp3`, blob);
+                        }
+
+                        statusContent.textContent = "Creating ZIP...";
+
+                        const zipBlob = await zip.generateAsync({ type: "blob" });
+                        const url = URL.createObjectURL(zipBlob);
+                        const a = document.createElement("a");
+
+                        a.href = url;
+                        a.download = `${album.albumName}.zip`;
+
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+
+                        URL.revokeObjectURL(url);
+
+                        statusContent.textContent = "Album ZIP downloaded!";
+                    } catch (error) {
+                        statusContent.textContent = `Error downloading album ZIP: ${error.message}`;
+                        console.error("Failed to download album ZIP:", error);
+                    }
+                }
+
 
 
                 async function downloadSong(songId, fileName) {
