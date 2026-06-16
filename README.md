@@ -10,6 +10,6 @@ A browser-based tool for browsing Rejoicify music albums and downloading songs u
 
 ## Development note
 
-I am affiliated with, endorsed by, or maintained by Rejoicify.
+I am not affiliated with, endorsed by, or maintained by Rejoicify.
 
 No access tokens are included in this repository. Users must sign in to their own Rejoicify account and provide their own valid token. Use at your own risk.
