@@ -15,7 +15,7 @@
             --main-background: black;
             --panel-background: rgb(27, 27, 27);
             --main-text: white;
-            --border: rgb(136, 136, 136);
+            --gray: rgb(136, 136, 136);
         }
 
         body {
@@ -29,7 +29,7 @@
         }
 
         a:hover {
-            color: var(--border);
+            color: var(--gray);
         }
 
         .status {
@@ -67,7 +67,7 @@
             background-color: var(--panel-background);
             color: var(--main-text);
 
-            border: 1px solid var(--border);
+            border: 1px solid var(--gray);
             border-radius: 10px;
             text-align: center;
             overflow-y: auto;
@@ -91,7 +91,7 @@
             background-color: var(--panel-background);
             color: var(--main-text);
 
-            border: 1px solid var(--border);
+            border: 1px solid var(--gray);
             border-radius: 10px;
             text-align: center;
             overflow-y: auto;
@@ -185,7 +185,7 @@
 
             color: var(--main-text);
             background-color: var(--panel-background);
-            border: 1px solid var(--border);
+            border: 1px solid var(--gray);
             border-radius: 10px;
         }
 
@@ -201,9 +201,9 @@
             padding: 12px;
             text-align: center;
 
-            color: var(--border);
+            color: var(--gray);
             background-color: var(--panel-background);
-            border: 1px solid var(--border);
+            border: 1px solid var(--gray);
             border-radius: 10px;
         }
 
@@ -213,9 +213,9 @@
             padding: 12px;
             text-align: center;
 
-            color: var(--border);
+            color: var(--gray);
             background-color: var(--panel-background);
-            border: 1px solid var(--border);
+            border: 1px solid var(--gray);
             border-radius: 10px;
         }
 
@@ -275,7 +275,16 @@
         </div>
 
     </div>
+    <!-- For zip -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- For metadata -->
+    <script type="module">
+        import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6.3.1/+esm";
+
+        window.ID3Writer = ID3Writer;
+    </script>
+
     <script>
         const CATALOG_URL = "https://musicdata.rejoicemusic.org/meta/latest/core.json.gz";
         const statusContent = document.getElementById("statusContent");
@@ -288,20 +297,12 @@
         const loginURL = "https://app.rejoicemusic.org/auth/signin";
         const blockInstrumentalMusic = document.getElementById("blockInstrumentalMusic");
         const blockDrumsMusic = document.getElementById("blockDrumsMusic");
-        const settingsButton = document.getElementById("settingsButton");
-        const deleteToken = document.getElementById("deleteTokenButton");
+        const settingsButton = document.getElementById("settingsButton");        
 
         settingsButton.addEventListener("click", () => {
             const settings = document.getElementById("settings");
             settings.style.display = settings.style.display === "none" ? "flex" : "none";
-        });
-        /*
-                deleteToken.addEventListener("click", () => {
-                    localStorage.removeItem("token");
-                    statusContent.textContent = "Token deleted successfully!";
-                    console.log("Token deleted.");
-                });
-        */
+        });       
 
         saveTokenButton.addEventListener("click", () => {
             const tokenWasSaved = saveToken();
@@ -310,7 +311,6 @@
                 tokenModal.style.display = "none";
             }
         });
-
 
         const saveToken = () => {
             let token = tokenInput.value.trim();
@@ -330,6 +330,7 @@
             } catch {
                 //Not json so just use as pasted//
             }
+
             localStorage.setItem("token", token);
             statusContent.textContent = "Token saved successfully!";
             console.log("Token saved.");
@@ -339,6 +340,27 @@
         const getToken = () => {
             return localStorage.getItem("token");
         };
+
+
+        async function addMetadataToMp3(mp3File, metadata) {
+            const arrayBuffer = await mp3File.arrayBuffer();
+
+            const title = metadata.title || "";
+            const album = metadata.album || "";
+            const artist = metadata.artist || "";
+            const albumArtist = metadata.albumArtist || artist;
+
+            const writer = new window.ID3Writer(arrayBuffer);
+
+            writer.setFrame("TIT2", title);    // Title
+            writer.setFrame("TALB", album);    // Album
+            writer.setFrame("TPE1", [artist]);   // Artist
+            writer.setFrame("TPE2", albumArtist);    // Album Artist
+
+            writer.addTag({ version: 3 });
+
+            return new Blob([writer.arrayBuffer], { type: "audio/mpeg" });
+        }
 
         const loadCatalog = async () => {
             try {
@@ -384,22 +406,44 @@
                 //Debugging again//
                 console.log(songsByAlbumId);
 
+                const artistsById = new Map();
+
+                for (const artist of catalog.artist) {
+                    artistsById.set(String(artist.artistID), artist);
+                }
+
 
                 //Attach album data to songs//
                 const albumsWithSongs = catalog.album.map(album => {
                     const albumId = String(album.albumID);
                     const albumSongs = songsByAlbumId.get(albumId) || [];
+                    const artist = artistsById.get(String(album.artistID));
+
 
                     return {
                         albumID: album.albumID,
                         albumName: album.albumName,
-                        artistName: album.artistName,
                         songs: albumSongs,
-
+                        artistID: album.artistID,
+                        artistName: artist ? artist.artistName : "Unknown Artist"
                     };
                 });
 
+                console.table(
+                    albumsWithSongs.slice(0, 20).map(album => ({
+                        albumName: album.albumName,
+                        artistID: album.artistID,
+                        artistName: album.artistName,
+                        songCount: album.songs.length
+                    }))
+                );
+
+
+
                 statusContent.textContent = `Loaded ${catalog.albumSong.length} songs.`;
+
+
+
 
                 //Create Dropdown Menu for Albums//
                 const albumDropdown = document.createElement("select");
@@ -414,7 +458,7 @@
                 //Add each album as a dropdown option//
                 for (const item of albumsWithSongs) {
                     const option = document.createElement("option");
-                    option.textContent = `${item.albumName} - ${item.songs.length} songs`;
+                    option.textContent = `${item.albumName} by ${item.artistName} (${item.songs.length} songs)`;
                     option.value = item.albumID;
                     albumDropdown.appendChild(option);
                 }
@@ -480,13 +524,62 @@
                             songList.appendChild(div);
 
                             button.addEventListener("click", () => {
-                                downloadSong(song.albumSongID, song.albumSongName);
+                                downloadSong(song, album);
                             });
 
                         }
                     }
                 });
-                //Download Zip Credits @chatgpt - I was running out of time //
+                async function downloadSong(song, album) {
+                    const token = getToken();
+                    try {
+                        if (!token) {
+                            tokenModal.style.display = "flex";
+                            return;
+                        }
+                        //You can adjust from low-medium-high for the quality of the audio//
+                        const songUrl = `https://musicdata.rejoicemusic.org/albumsong/${song.albumSongID}_medium.mp3?token=${token}`;
+                        const mp3Response = await fetch(songUrl);
+
+                        if (!mp3Response.ok) {
+                            if (mp3Response.status === 403) {
+                                localStorage.removeItem("token");
+                                tokenModal.style.display = "flex";
+                                statusContent.textContent = "Try entering a new token.";
+                                return;
+                            }
+
+                            throw new Error(`HTTP ${mp3Response.status} ${mp3Response.statusText}`);
+                        }
+                        const rawMp3File = await mp3Response.blob();
+
+                        const songMetadata = {
+                            title: song.albumSongName,
+                            album: album.albumName,
+                            artist: album.artistName,
+                            albumArtist: album.artistName
+                        };
+                        //Send song and metadata that i want added to the song//
+                        const mp3WithMetadata = await addMetadataToMp3(rawMp3File, songMetadata);
+
+                        //const blob = await response.blob();//
+                        const downloadUrl = URL.createObjectURL(mp3WithMetadata);
+                        const downloadLink = document.createElement("a");
+
+                        downloadLink.href = downloadUrl;
+                        downloadLink.download = `${song.albumSongName}.mp3`;
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                        URL.revokeObjectURL(downloadUrl);
+
+                    } catch (error) {
+                        statusContent.textContent = `Error downloading song: ${error.message}`;
+                        console.error("Failed to download song:", error);
+                    }
+                };
+
+                //Download Zip //
                 async function downloadAlbumZip(album) {
                     const token = getToken();
 
@@ -510,38 +603,48 @@
                             statusContent.textContent = `Adding ${song.albumSongName} to ZIP...`;
 
                             const songUrl = `https://musicdata.rejoicemusic.org/albumsong/${song.albumSongID}_medium.mp3?token=${token}`;
-                            const response = await fetch(songUrl);
+                            const mp3Response = await fetch(songUrl);
 
-                            if (!response.ok) {
-                                if (response.status === 403) {
+                            if (!mp3Response.ok) {
+                                if (mp3Response.status === 403) {
                                     localStorage.removeItem("token");
                                     tokenModal.style.display = "flex";
                                     statusContent.textContent = "Try entering a new token.";
                                     return;
                                 }
 
-                                throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                                throw new Error(`HTTP ${mp3Response.status} ${mp3Response.statusText}`);
                             }
 
-                            const blob = await response.blob();
+                            const rawMp3File = await mp3Response.blob();
 
-                            zip.file(`${song.albumSongName}.mp3`, blob);
+                            const songMetadata = {
+                                title: song.albumSongName,
+                                album: album.albumName,
+                                artist: album.artistName,
+                                albumArtist: album.artistName
+                            };
+                            //Send song and metadata that i want added to the song//
+                            const mp3WithMetadata = await addMetadataToMp3(rawMp3File, songMetadata);
+
+                            zip.file(`${album.albumName}/${song.albumSongName}.mp3`, await mp3WithMetadata.arrayBuffer());
                         }
 
                         statusContent.textContent = "Creating ZIP...";
 
-                        const zipBlob = await zip.generateAsync({ type: "blob" });
-                        const url = URL.createObjectURL(zipBlob);
-                        const a = document.createElement("a");
+                        //Download the ZIP file//
+                        const zipFile = await zip.generateAsync({ type: "blob" });
+                        const downloadUrl = URL.createObjectURL(zipFile);
+                        const downloadLink = document.createElement("a");
 
-                        a.href = url;
-                        a.download = `${album.albumName}.zip`;
+                        downloadLink.href = downloadUrl;
+                        downloadLink.download = `${album.albumName}.zip`;
 
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
 
-                        URL.revokeObjectURL(url);
+                        URL.revokeObjectURL(downloadUrl);
 
                         statusContent.textContent = "Album ZIP downloaded!";
                     } catch (error) {
@@ -549,50 +652,6 @@
                         console.error("Failed to download album ZIP:", error);
                     }
                 }
-
-
-
-                async function downloadSong(songId, fileName) {
-                    const token = getToken();
-                    try {
-                        if (!token) {
-                            tokenModal.style.display = "flex";
-                            return;
-                        }
-
-                        const songUrl = `https://musicdata.rejoicemusic.org/albumsong/${songId}_medium.mp3?token=${token}`;
-
-                        const response = await fetch(songUrl);
-
-                        if (!response.ok) {
-                            if (response.status === 403) {
-                                localStorage.removeItem("token");
-                                tokenModal.style.display = "flex";
-                                statusContent.textContent = "Try entering a new token.";
-                                return;
-                            }
-
-                            throw new Error(`HTTP ${response.status} ${response.statusText}`);
-                        }
-
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-
-                        a.href = url;
-                        a.download = `${fileName}.mp3`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-
-                    } catch (error) {
-                        statusContent.textContent = `Error downloading song: ${error.message}`;
-                        console.error("Failed to download song:", error);
-                    }
-                };
-
-
             } catch (error) {
                 statusContent.textContent = `Error: ${error.message}`;
                 console.error("Failed to load and process catalog:", error);
