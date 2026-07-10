@@ -312,7 +312,7 @@
             }
         });
 
-        // FIX 1: Cookie helpers replacing localStorage for token storage
+        //Cookie helpers for token storage
         const saveToken = () => {
             let token = tokenInput.value.trim();
 
@@ -347,7 +347,7 @@
             document.cookie = "token=; path=/; max-age=0; SameSite=Strict";
         };
 
-        // FIX 2: Added trackNumber parameter and TRCK frame to metadata writer
+        // Write Album metadata
         async function addMetadataToMp3(mp3File, metadata) {
             const arrayBuffer = await mp3File.arrayBuffer();
 
@@ -445,7 +445,7 @@
 
                 statusContent.textContent = `Loaded ${catalog.albumSong.length} songs.`;
 
-                // FIX 3: Sort albums alphabetically by album name before populating dropdown
+                // Sort albums alphabetically by album name before populating dropdown
                 albumsWithSongs.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
                 // Create Dropdown Menu for Albums
