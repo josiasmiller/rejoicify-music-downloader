@@ -312,6 +312,7 @@
             }
         });
 
+        // Cookie helpers for token storage
         const saveToken = () => {
             let token = tokenInput.value.trim();
 
@@ -320,7 +321,7 @@
                 console.error("Invalid Token.");
                 return;
             }
-            //Add support if somebody copies the whole json data//
+            // Add support if somebody copies the whole json data
             try {
                 const parsedToken = JSON.parse(token);
 
@@ -328,20 +329,25 @@
                     token = parsedToken.token;
                 }
             } catch {
-                //Not json so just use as pasted//
+                // Not json so just use as pasted
             }
 
-            localStorage.setItem("token", token);
+            document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=31536000; SameSite=Strict`;
             statusContent.textContent = "Token saved successfully!";
             console.log("Token saved.");
             return true;
         };
 
         const getToken = () => {
-            return localStorage.getItem("token");
+            const match = document.cookie.split("; ").find(row => row.startsWith("token="));
+            return match ? decodeURIComponent(match.split("=")[1]) : null;
         };
 
+        const deleteToken = () => {
+            document.cookie = "token=; path=/; max-age=0; SameSite=Strict";
+        };
 
+        // Write Album metadata
         async function addMetadataToMp3(mp3File, metadata) {
             const arrayBuffer = await mp3File.arrayBuffer();
 
@@ -349,13 +355,16 @@
             const album = metadata.album || "";
             const artist = metadata.artist || "";
             const albumArtist = metadata.albumArtist || artist;
+            const trackNumber = metadata.trackNumber || 1;
+            const trackTotal = metadata.trackTotal || 1;
 
             const writer = new window.ID3Writer(arrayBuffer);
 
-            writer.setFrame("TIT2", title);    // Title
-            writer.setFrame("TALB", album);    // Album
-            writer.setFrame("TPE1", [artist]);   // Artist
-            writer.setFrame("TPE2", albumArtist);    // Album Artist
+            writer.setFrame("TIT2", title);                         // Title
+            writer.setFrame("TALB", album);                         // Album
+            writer.setFrame("TPE1", [artist]);                      // Artist
+            writer.setFrame("TPE2", albumArtist);                   // Album Artist
+            writer.setFrame("TRCK", `${trackNumber}/${trackTotal}`); // Track number / total
 
             writer.addTag({ version: 3 });
 
@@ -383,16 +392,14 @@
                 );
                 const text = await new Response(decompressedStream).text();
 
-                //Parse decompressed text to JSON//
+                // Parse decompressed text to JSON
                 const catalog = JSON.parse(text);
 
-                //Debug - inspecting catalog    //
                 console.log(catalog);
-
 
                 statusContent.textContent = "Catalog Converted to JSON!";
 
-                //Match Songs to Album ID//
+                // Match Songs to Album ID
                 const songsByAlbumId = new Map();
 
                 for (const albumSong of catalog.albumSong) {
@@ -403,7 +410,7 @@
                     }
                     songsByAlbumId.get(albumId).push(albumSong);
                 }
-                //Debugging again//
+
                 console.log(songsByAlbumId);
 
                 const artistsById = new Map();
@@ -412,13 +419,11 @@
                     artistsById.set(String(artist.artistID), artist);
                 }
 
-
-                //Attach album data to songs//
+                // Attach album data to songs
                 const albumsWithSongs = catalog.album.map(album => {
                     const albumId = String(album.albumID);
                     const albumSongs = songsByAlbumId.get(albumId) || [];
                     const artist = artistsById.get(String(album.artistID));
-
 
                     return {
                         albumID: album.albumID,
@@ -438,27 +443,23 @@
                     }))
                 );
 
-
-
                 statusContent.textContent = `Loaded ${catalog.albumSong.length} songs.`;
 
+                // Sort albums alphabetically by album name before populating dropdown
+                albumsWithSongs.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
-
-
-                //Create Dropdown Menu for Albums//
+                // Create Dropdown Menu for Albums
                 const albumDropdown = document.createElement("select");
                 const defaultDropdown = document.createElement("option");
 
                 defaultDropdown.textContent = "Select an Album";
-
                 defaultDropdown.value = "";
-
                 albumDropdown.appendChild(defaultDropdown);
 
-                //Add each album as a dropdown option//
+                // Add each album as a dropdown option
                 for (const item of albumsWithSongs) {
                     const option = document.createElement("option");
-                    option.textContent = `${item.albumName} by ${item.artistName} (${item.songs.length} songs)`;
+                    option.textContent = `${item.albumName} — ${item.artistName} (${item.songs.length} songs)`;
                     option.value = item.albumID;
                     albumDropdown.appendChild(option);
                 }
@@ -492,9 +493,10 @@
                         await downloadAlbumZip(album);
                     });
 
-                    for (const song of album.songs) {
+                    album.songs.forEach((song, index) => {
                         const div = document.createElement("div");
                         const button = document.createElement("button");
+                        const trackNumber = index + 1;
 
                         if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
                             div.classList.add("blockedSongItem");
@@ -508,7 +510,6 @@
                             songList.appendChild(div);
                             console.log(`Skipping download button on drums song: ${song.albumSongName}`);
                         }
-
                         else {
                             button.textContent = "Download";
                             button.classList.add("downloadButton");
@@ -524,26 +525,26 @@
                             songList.appendChild(div);
 
                             button.addEventListener("click", () => {
-                                downloadSong(song, album);
+                                downloadSong(song, album, trackNumber);
                             });
-
                         }
-                    }
+                    });
                 });
-                async function downloadSong(song, album) {
+
+                async function downloadSong(song, album, trackNumber) {
                     const token = getToken();
                     try {
                         if (!token) {
                             tokenModal.style.display = "flex";
                             return;
                         }
-                        //You can adjust from low-medium-high for the quality of the audio//
+                        // You can adjust from low-medium-high for the quality of the audio
                         const songUrl = `https://musicdata.rejoicemusic.org/albumsong/${song.albumSongID}_medium.mp3?token=${token}`;
                         const mp3Response = await fetch(songUrl);
 
                         if (!mp3Response.ok) {
                             if (mp3Response.status === 403) {
-                                localStorage.removeItem("token");
+                                deleteToken();
                                 tokenModal.style.display = "flex";
                                 statusContent.textContent = "Try entering a new token.";
                                 return;
@@ -557,12 +558,13 @@
                             title: song.albumSongName,
                             album: album.albumName,
                             artist: album.artistName,
-                            albumArtist: album.artistName
+                            albumArtist: album.artistName,
+                            trackNumber: trackNumber,
+                            trackTotal: album.songs.length
                         };
-                        //Send song and metadata that i want added to the song//
+                        // Send song and metadata that i want added to the song
                         const mp3WithMetadata = await addMetadataToMp3(rawMp3File, songMetadata);
 
-                        //const blob = await response.blob();//
                         const downloadUrl = URL.createObjectURL(mp3WithMetadata);
                         const downloadLink = document.createElement("a");
 
@@ -579,7 +581,7 @@
                     }
                 };
 
-                //Download Zip //
+                // Download Zip
                 async function downloadAlbumZip(album) {
                     const token = getToken();
 
@@ -590,14 +592,16 @@
                         }
 
                         const zip = new JSZip();
+                        const totalTracks = album.songs.length;
 
-                        for (const song of album.songs) {
+                       // Wait till all the songs have be downloaded and processed befored creating the zip
+                        await Promise.all(album.songs.map(async (song, index) => {
                             if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
-                                continue;
+                                return;
                             }
 
                             if (blockDrumsMusic.checked && song.includesDrums === true) {
-                                continue;
+                                return;
                             }
 
                             statusContent.textContent = `Adding ${song.albumSongName} to ZIP...`;
@@ -607,7 +611,7 @@
 
                             if (!mp3Response.ok) {
                                 if (mp3Response.status === 403) {
-                                    localStorage.removeItem("token");
+                                    deleteToken();
                                     tokenModal.style.display = "flex";
                                     statusContent.textContent = "Try entering a new token.";
                                     return;
@@ -622,17 +626,19 @@
                                 title: song.albumSongName,
                                 album: album.albumName,
                                 artist: album.artistName,
-                                albumArtist: album.artistName
+                                albumArtist: album.artistName,
+                                trackNumber: index + 1,
+                                trackTotal: totalTracks
                             };
-                            //Send song and metadata that i want added to the song//
+                            // Send song and metadata that i want added to the song
                             const mp3WithMetadata = await addMetadataToMp3(rawMp3File, songMetadata);
 
                             zip.file(`${album.albumName}/${song.albumSongName}.mp3`, await mp3WithMetadata.arrayBuffer());
-                        }
+                        }));
 
                         statusContent.textContent = "Creating ZIP...";
 
-                        //Download the ZIP file//
+                        // Download the ZIP file
                         const zipFile = await zip.generateAsync({ type: "blob" });
                         const downloadUrl = URL.createObjectURL(zipFile);
                         const downloadLink = document.createElement("a");
@@ -658,7 +664,7 @@
             }
 
         }
-        //Initial function call to load the catalog when the page loads//
+        // Initial function call to load the catalog when the page loads
         loadCatalog();
 
     </script>
