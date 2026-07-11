@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Rejoicify Music Downloader</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --status: rgb(40, 40, 40);
+            --main-background: black;
+            --panel-background: rgb(27, 27, 27);
+            --main-text: white;
+            --gray: rgb(136, 136, 136);
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: var(--main-text);
+        }
+
+        a {
+            color: var(--main-text);
+        }
+
+        a:hover {
+            color: var(--gray);
+        }
+
+        .status {
+            background-color: var(--status);
+            color: var(--main-text);
+            height: 50px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .settingsButton {
+            position: absolute;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            background-color: var(--main-background);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: none;
+        }
+
+        .tokenModal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50vw;
+            height: 50vh;
+
+            background-color: var(--panel-background);
+            color: var(--main-text);
+
+            border: 1px solid var(--gray);
+            border-radius: 10px;
+            text-align: center;
+            overflow-y: auto;
+
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+
+        .settings {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+
+            width: 50vw;
+            height: 50vh;
+            background-color: var(--panel-background);
+            color: var(--main-text);
+
+            border: 1px solid var(--gray);
+            border-radius: 10px;
+            text-align: center;
+            overflow-y: auto;
+
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+
+        }
+
+        .settings label {
+            width: 300px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-align: left;
+        }
+
+        .settingsIcon {
+            width: 20px;
+            height: 20px;
+            fill: var(--main-text);
+        }
+
+        .albumList {
+            padding-top: 10px;
+        }
+
+        select {
+            width: 500px;
+            height: 30px;
+        }
+
+        .tokenModal input {
+            width: 300px;
+            height: 30px;
+        }
+
+        .saveTokenButton,
+        .deleteTokenButton {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .background {
+            background-color: var(--main-background);
+            min-height: 100vh;
+        }
+
+        .catalogSection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0px;
+
+        }
+
+        .songList div {
+            width: 500px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .songList {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 15px;
+        }
+
+        h1 {
+            margin: 0;
+            padding: 10px;
+            color: var(--main-text);
+            text-align: center;
+        }
+
+        .songItem {
+            width: 500px;
+            margin-top: 10px;
+            padding: 12px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            color: var(--main-text);
+            background-color: var(--panel-background);
+            border: 1px solid var(--gray);
+            border-radius: 10px;
+        }
+
+        .downloadButton {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .defaultText {
+            width: 500px;
+            margin-top: 15px;
+            padding: 12px;
+            text-align: center;
+
+            color: var(--gray);
+            background-color: var(--panel-background);
+            border: 1px solid var(--gray);
+            border-radius: 10px;
+        }
+
+        .blockedSongItem {
+            width: 500px;
+            margin-top: 10px;
+            padding: 12px;
+            text-align: center;
+
+            color: var(--gray);
+            background-color: var(--panel-background);
+            border: 1px solid var(--gray);
+            border-radius: 10px;
+        }
+
+        .albumDownloadButton {
+            width: 500px;
+            margin-top: 15px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background">
+        <h1>Rejoicify Music Downloader</h1>
+        <div class="status" id="status">
+            <div id="statusContent"> </div>
+            <button id="settingsButton" class="settingsButton" aria-label="Open settings">
+                <svg class="settingsIcon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                        d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.37-.31-.6-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98L14.5 2.42C14.47 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.5.42L9.12 5.07c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.08-.48 0-.6.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.02.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.37.31.6.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.08.48 0 .6-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+
+        <!--Hidden Unless No Token is Present */-->
+        <div id="tokenModal" class="tokenModal" style="display: none;">
+            <h2>Enter Your Token</h2>
+            <p>Sign into your Rejoicify account <a href="https://app.rejoicemusic.org/auth/signin"
+                    target="_blank">here</a>.</p>
+            <p>Open <a href="https://app.rejoicemusic.org/api/coremusicdatatoken" target="_blank">this link</a> and copy
+                and paste your token here:</p>
+            <input id="tokenInput" placeholder="Enter your token here">
+            <button id="saveTokenButton" class="saveTokenButton">Save Token</button>
+            <!-- <button id="deleteTokenButton" class="deleteTokenButton">Delete Token</button> only for testing -->
+        </div>
+
+        <!--Hidden Until Settings are Opened -->
+        <div id="settings" class="settings" style="display: none;">
+            <h2>Check the boxes of the types of music you want the download button removed from.</h2>
+            <label>
+                <input type="checkbox" id="blockInstrumentalMusic" />
+                Block Instrumental Songs
+            </label>
+            <label>
+                <input type="checkbox" id="blockDrumsMusic" />
+                Block Drum Songs
+            </label>
+        </div>
+        <!--This is where the catalog will be displayed -->
+        <div class="catalogSection">
+            <div class="albumList" id="albumList"></div>
+            <div id="songList" class="songList"></div>
+        </div>
+
+    </div>
+    <!-- For zip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- For metadata -->
+    <script type="module">
+        import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6.3.1/+esm";
+
+        window.ID3Writer = ID3Writer;
+    </script>
+
+    <script>
+        const CATALOG_URL = "https://musicdata.rejoicemusic.org/meta/latest/core.json.gz";
+        const statusContent = document.getElementById("statusContent");
+        const albumList = document.getElementById("albumList");
+        const songList = document.getElementById("songList");
+        const tokenInput = document.getElementById("tokenInput");
+        const saveTokenButton = document.getElementById("saveTokenButton");
+        const tokenModal = document.getElementById("tokenModal");
+        const tokenURL = "https://app.rejoicemusic.org/api/coremusicdatatoken";
+        const loginURL = "https://app.rejoicemusic.org/auth/signin";
+        const blockInstrumentalMusic = document.getElementById("blockInstrumentalMusic");
+        const blockDrumsMusic = document.getElementById("blockDrumsMusic");
+        const settingsButton = document.getElementById("settingsButton");        
+
+        settingsButton.addEventListener("click", () => {
+            const settings = document.getElementById("settings");
+            settings.style.display = settings.style.display === "none" ? "flex" : "none";
+        });       
+
+        saveTokenButton.addEventListener("click", () => {
+            const tokenWasSaved = saveToken();
+
+            if (tokenWasSaved) {
+                tokenModal.style.display = "none";
+            }
+        });
+
+        const saveToken = () => {
+            let token = tokenInput.value.trim();
+
+            if (!token) {
+                statusContent.textContent = "Please enter a valid token.";
+                console.error("Invalid Token.");
+                return;
+            }
+            //Add support if somebody copies the whole json data//
+            try {
+                const parsedToken = JSON.parse(token);
+
+                if (parsedToken.token) {
+                    token = parsedToken.token;
+                }
+            } catch {
+                //Not json so just use as pasted//
+            }
+
+            localStorage.setItem("token", token);
+            statusContent.textContent = "Token saved successfully!";
+            console.log("Token saved.");
+            return true;
+        };
+
+        const getToken = () => {
+            return localStorage.getItem("token");
+        };
+
+
+        async function addMetadataToMp3(mp3File, metadata) {
+            const arrayBuffer = await mp3File.arrayBuffer();
+
+            const title = metadata.title || "";
+            const album = metadata.album || "";
+            const artist = metadata.artist || "";
+            const albumArtist = metadata.albumArtist || artist;
+
+            const writer = new window.ID3Writer(arrayBuffer);
+
+            writer.setFrame("TIT2", title);    // Title
+            writer.setFrame("TALB", album);    // Album
+            writer.setFrame("TPE1", [artist]);   // Artist
+            writer.setFrame("TPE2", albumArtist);    // Album Artist
+
+            writer.addTag({ version: 3 });
+
+            return new Blob([writer.arrayBuffer], { type: "audio/mpeg" });
+        }
+
+        const loadCatalog = async () => {
+            try {
+
+                statusContent.textContent = "Downloading Catalog...";
+                const response = await fetch(CATALOG_URL);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                }
+                if (!response.body) {
+                    throw new Error("No response body found");
+                }
+
+                statusContent.textContent = "Decompressing Catalog...";
+
+                const compressedStream = response.body;
+                const decompressedStream = compressedStream.pipeThrough(
+                    new DecompressionStream("gzip")
+                );
+                const text = await new Response(decompressedStream).text();
+
+                //Parse decompressed text to JSON//
+                const catalog = JSON.parse(text);
+
+                //Debug - inspecting catalog    //
+                console.log(catalog);
+
+
+                statusContent.textContent = "Catalog Converted to JSON!";
+
+                //Match Songs to Album ID//
+                const songsByAlbumId = new Map();
+
+                for (const albumSong of catalog.albumSong) {
+                    const albumId = String(albumSong.albumID);
+
+                    if (!songsByAlbumId.has(albumId)) {
+                        songsByAlbumId.set(albumId, []);
+                    }
+                    songsByAlbumId.get(albumId).push(albumSong);
+                }
+                //Debugging again//
+                console.log(songsByAlbumId);
+
+                const artistsById = new Map();
+
+                for (const artist of catalog.artist) {
+                    artistsById.set(String(artist.artistID), artist);
+                }
+
+
+                //Attach album data to songs//
+                const albumsWithSongs = catalog.album.map(album => {
+                    const albumId = String(album.albumID);
+                    const albumSongs = songsByAlbumId.get(albumId) || [];
+                    const artist = artistsById.get(String(album.artistID));
+
+
+                    return {
+                        albumID: album.albumID,
+                        albumName: album.albumName,
+                        songs: albumSongs,
+                        artistID: album.artistID,
+                        artistName: artist ? artist.artistName : "Unknown Artist"
+                    };
+                });
+
+                console.table(
+                    albumsWithSongs.slice(0, 20).map(album => ({
+                        albumName: album.albumName,
+                        artistID: album.artistID,
+                        artistName: album.artistName,
+                        songCount: album.songs.length
+                    }))
+                );
+
+
+
+                statusContent.textContent = `Loaded ${catalog.albumSong.length} songs.`;
+
+
+
+
+                //Create Dropdown Menu for Albums//
+                const albumDropdown = document.createElement("select");
+                const defaultDropdown = document.createElement("option");
+
+                defaultDropdown.textContent = "Select an Album";
+
+                defaultDropdown.value = "";
+
+                albumDropdown.appendChild(defaultDropdown);
+
+                //Add each album as a dropdown option//
+                for (const item of albumsWithSongs) {
+                    const option = document.createElement("option");
+                    option.textContent = `${item.albumName} by ${item.artistName} (${item.songs.length} songs)`;
+                    option.value = item.albumID;
+                    albumDropdown.appendChild(option);
+                }
+
+                albumList.appendChild(albumDropdown);
+                songList.innerHTML = `<div class="defaultText">Select an album to view its songs.</div>`;
+
+                albumDropdown.addEventListener('change', () => {
+                    const selectedAlbum = albumDropdown.value;
+
+                    songList.innerHTML = "";
+
+                    if (!selectedAlbum) {
+                        songList.innerHTML = `<div class="defaultText">Select an album to view its songs.</div>`;
+                        return;
+                    }
+
+                    const album = albumsWithSongs.find(album => String(album.albumID) === selectedAlbum);
+
+                    if (!album) {
+                        songList.innerHTML = 'Album not found';
+                        return;
+                    }
+                    const downloadAlbumButton = document.createElement("button");
+                    downloadAlbumButton.textContent = "Download Full Album (.zip)";
+                    downloadAlbumButton.classList.add("albumDownloadButton");
+
+                    songList.appendChild(downloadAlbumButton);
+
+                    downloadAlbumButton.addEventListener("click", async () => {
+                        await downloadAlbumZip(album);
+                    });
+
+                    for (const song of album.songs) {
+                        const div = document.createElement("div");
+                        const button = document.createElement("button");
+
+                        if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
+                            div.classList.add("blockedSongItem");
+                            div.textContent = song.albumSongName + " (Instrumental)";
+                            songList.appendChild(div);
+                            console.log(`Skipping download button on instrumental song: ${song.albumSongName}`);
+                        }
+                        else if (blockDrumsMusic.checked && song.includesDrums === true) {
+                            div.classList.add("blockedSongItem");
+                            div.textContent = song.albumSongName + " (Drums)";
+                            songList.appendChild(div);
+                            console.log(`Skipping download button on drums song: ${song.albumSongName}`);
+                        }
+
+                        else {
+                            button.textContent = "Download";
+                            button.classList.add("downloadButton");
+
+                            div.classList.add("songItem");
+
+                            const songName = document.createElement("span");
+                            songName.textContent = song.albumSongName;
+
+                            div.appendChild(songName);
+                            div.appendChild(button);
+
+                            songList.appendChild(div);
+
+                            button.addEventListener("click", () => {
+                                downloadSong(song, album);
+                            });
+
+                        }
+                    }
+                });
+                async function downloadSong(song, album) {
+                    const token = getToken();
+                    try {
+                        if (!token) {
+                            tokenModal.style.display = "flex";
+                            return;
+                        }
+                        //You can adjust from low-medium-high for the quality of the audio//
+                        const songUrl = `https://musicdata.rejoicemusic.org/albumsong/${song.albumSongID}_medium.mp3?token=${token}`;
+                        const mp3Response = await fetch(songUrl);
+
+                        if (!mp3Response.ok) {
+                            if (mp3Response.status === 403) {
+                                localStorage.removeItem("token");
+                                tokenModal.style.display = "flex";
+                                statusContent.textContent = "Try entering a new token.";
+                                return;
+                            }
+
+                            throw new Error(`HTTP ${mp3Response.status} ${mp3Response.statusText}`);
+                        }
+                        const rawMp3File = await mp3Response.blob();
+
+                        const songMetadata = {
+                            title: song.albumSongName,
+                            album: album.albumName,
+                            artist: album.artistName,
+                            albumArtist: album.artistName
+                        };
+                        //Send song and metadata that i want added to the song//
+                        const mp3WithMetadata = await addMetadataToMp3(rawMp3File, songMetadata);
+
+                        //const blob = await response.blob();//
+                        const downloadUrl = URL.createObjectURL(mp3WithMetadata);
+                        const downloadLink = document.createElement("a");
+
+                        downloadLink.href = downloadUrl;
+                        downloadLink.download = `${song.albumSongName}.mp3`;
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                        URL.revokeObjectURL(downloadUrl);
+
+                    } catch (error) {
+                        statusContent.textContent = `Error downloading song: ${error.message}`;
+                        console.error("Failed to download song:", error);
+                    }
+                };
+
+                //Download Zip //
+                async function downloadAlbumZip(album) {
+                    const token = getToken();
+
+                    try {
+                        if (!token) {
+                            tokenModal.style.display = "flex";
+                            return;
+                        }
+
+                        const zip = new JSZip();
+
+                        for (const song of album.songs) {
+                            if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
+                                continue;
+                            }
+
+                            if (blockDrumsMusic.checked && song.includesDrums === true) {
+                                continue;
+                            }
+
+                            statusContent.textContent = `Adding ${song.albumSongName} to ZIP...`;
+
+                            const songUrl = `https://musicdata.rejoicemusic.org/albumsong/${song.albumSongID}_medium.mp3?token=${token}`;
+                            const mp3Response = await fetch(songUrl);
+
+                            if (!mp3Response.ok) {
+                                if (mp3Response.status === 403) {
+                                    localStorage.removeItem("token");
+                                    tokenModal.style.display = "flex";
+                                    statusContent.textContent = "Try entering a new token.";
+                                    return;
+                                }
+
+                                throw new Error(`HTTP ${mp3Response.status} ${mp3Response.statusText}`);
+                            }
+
+                            const rawMp3File = await mp3Response.blob();
+
+                            const songMetadata = {
+                                title: song.albumSongName,
+                                album: album.albumName,
+                                artist: album.artistName,
+                                albumArtist: album.artistName
+                            };
+                            //Send song and metadata that i want added to the song//
+                            const mp3WithMetadata = await addMetadataToMp3(rawMp3File, songMetadata);
+
+                            zip.file(`${album.albumName}/${song.albumSongName}.mp3`, await mp3WithMetadata.arrayBuffer());
+                        }
+
+                        statusContent.textContent = "Creating ZIP...";
+
+                        //Download the ZIP file//
+                        const zipFile = await zip.generateAsync({ type: "blob" });
+                        const downloadUrl = URL.createObjectURL(zipFile);
+                        const downloadLink = document.createElement("a");
+
+                        downloadLink.href = downloadUrl;
+                        downloadLink.download = `${album.albumName}.zip`;
+
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+
+                        URL.revokeObjectURL(downloadUrl);
+
+                        statusContent.textContent = "Album ZIP downloaded!";
+                    } catch (error) {
+                        statusContent.textContent = `Error downloading album ZIP: ${error.message}`;
+                        console.error("Failed to download album ZIP:", error);
+                    }
+                }
+            } catch (error) {
+                statusContent.textContent = `Error: ${error.message}`;
+                console.error("Failed to load and process catalog:", error);
+            }
+
+        }
+        //Initial function call to load the catalog when the page loads//
+        loadCatalog();
+
+    </script>
+</body>
+
+</html>
