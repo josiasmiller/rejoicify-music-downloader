@@ -594,11 +594,7 @@
                         const zip = new JSZip();
                         const totalTracks = album.songs.length;
 
-                        // FIX: use map + Promise.all instead of forEach so we actually
-                        // wait for every song to be fetched, tagged, and added to the
-                        // zip before generating it. forEach does NOT await async
-                        // callbacks, which was causing generateAsync() to run before
-                        // any files were added, producing an empty zip.
+                       // Wait till all the songs have be downloaded and processed befored creating the zip
                         await Promise.all(album.songs.map(async (song, index) => {
                             if (blockInstrumentalMusic.checked && song.includesInstruments === true) {
                                 return;
